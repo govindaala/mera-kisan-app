@@ -1,27 +1,102 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- File Path: app/src/main/res/layout/activity_main.xml -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F5F7FA">
+    android:background="#F4F6F8">
 
     <!-- टॉप हेडर बार -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="60dp"
+        android:layout_height="56dp"
         android:background="#2E7D32"
         android:gravity="center_vertical"
         android:paddingStart="16dp"
         android:paddingEnd="16dp">
 
         <TextView
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:text="🌱 Mera Kisan"
             android:textColor="#FFFFFF"
             android:textSize="20sp"
             android:textStyle="bold" />
+
+        <!-- रिफ्रेश बटन -->
+        <Button
+            android:id="@+id/btnRefresh"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:backgroundTint="#1B5E20"
+            android:text="🔄 रिफ्रेश"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp" />
     </LinearLayout>
+
+    <!-- सर्च बॉक्स -->
+    <EditText
+        android:id="@+id/edtSearch"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_margin="10dp"
+        android:background="@android:drawable/editbox_background_normal"
+        android:hint="🔍 फसल का नाम खोजें..."
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:textSize="14sp" />
+
+    <!-- कैटेगरी फ़िल्टर बार -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:layout_marginBottom="6dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnCatAll"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="6dp"
+                android:backgroundTint="#2E7D32"
+                android:text="सभी"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnCatGrain"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="6dp"
+                android:backgroundTint="#757575"
+                android:text="अनाज"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnCatVeg"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginEnd="6dp"
+                android:backgroundTint="#757575"
+                android:text="सब्ज़ियां"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnCatFruit"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:backgroundTint="#757575"
+                android:text="फल"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </HorizontalScrollView>
 
     <!-- लोडिंग इंडिकेटर -->
     <ProgressBar
@@ -29,19 +104,19 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="16dp"
         android:visibility="gone" />
 
-    <!-- स्टेटस / एरर मैसेज -->
+    <!-- स्टेटस टेक्स्ट -->
     <TextView
         android:id="@+id/statusText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:padding="16dp"
+        android:padding="8dp"
         android:textColor="#666666"
         android:textSize="14sp"
-        android:text="नज़दीकी फसलें खोजी जा रही हैं..." />
+        android:text="फसलें लोड हो रही हैं..." />
 
     <!-- फसलों की लिस्ट -->
     <ScrollView
@@ -53,7 +128,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="12dp" />
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="24dp" />
     </ScrollView>
 
 </LinearLayout>
