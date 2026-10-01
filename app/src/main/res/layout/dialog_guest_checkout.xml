@@ -1,1 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- File Path: app/src/main/res/layout/dialog_guest_checkout.xml -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#FFFFFF">
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <TextView
+            android:id="@+id/dialogCropTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="देसी सोयाबीन"
+            android:textColor="#1B5E20"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/dialogFarmerDetails"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="किसान: रामेश्वर पाटीदार (पिपलिया)"
+            android:textColor="#555555"
+            android:textSize="14sp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="#E0E0E0" />
+
+        <!-- मात्रा (किलो) -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="मात्रा दर्ज करें (किलो):"
+            android:textColor="#333333"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/dialogEdtQty"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="6dp"
+            android:background="@android:drawable/editbox_background_normal"
+            android:hint="उदा. 5 या 10"
+            android:inputType="numberDecimal"
+            android:padding="10dp"
+            android:text="5" />
+
+        <!-- कुल कीमत -->
+        <TextView
+            android:id="@+id/dialogTxtTotal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="कुल राशि: ₹275"
+            android:textColor="#D84315"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="#E0E0E0" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="आपकी जानकारी (Guest Checkout):"
+            android:textColor="#1B5E20"
+            android:textStyle="bold" />
+
+        <!-- ग्राहक का नाम -->
+        <EditText
+            android:id="@+id/dialogEdtName"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:background="@android:drawable/editbox_background_normal"
+            android:hint="आपका पूरा नाम"
+            android:inputType="textPersonName"
+            android:padding="10dp" />
+
+        <!-- ग्राहक का फ़ोन नंबर -->
+        <EditText
+            android:id="@+id/dialogEdtPhone"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:background="@android:drawable/editbox_background_normal"
+            android:hint="आपका 10 अंकों का मोबाइल नंबर"
+            android:inputType="phone"
+            android:padding="10dp" />
+
+        <!-- डिलीवरी का पता -->
+        <EditText
+            android:id="@+id/dialogEdtAddress"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_marginTop="8dp"
+            android:background="@android:drawable/editbox_background_normal"
+            android:gravity="top|start"
+            android:hint="डिलीवरी का पता / गाँव / शहर"
+            android:inputType="textMultiLine"
+            android:padding="10dp" />
+
+        <!-- WhatsApp पर ऑर्डर बटन -->
+        <Button
+            android:id="@+id/dialogBtnWhatsapp"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="#25D366"
+            android:text="💬 WhatsApp पर ऑर्डर भेजें"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <!-- कॉल करने का बटन -->
+        <Button
+            android:id="@+id/dialogBtnCall"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="#2E7D32"
+            android:text="📞 किसान को सीधे कॉल करें"
+            android:textColor="#FFFFFF" />
+
+    </LinearLayout>
+</ScrollView>
