@@ -76,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
 
         btnRefresh.setOnClickListener(v -> checkLocationAndFetch());
 
+        // सर्च बॉक्स फ़िल्टर
         edtSearch.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -87,6 +88,7 @@ public class MainActivity extends AppCompatActivity {
             public void afterTextChanged(Editable s) {}
         });
 
+        // कैटेगरी फ़िल्टर
         btnCatAll.setOnClickListener(v -> setCategory("all", btnCatAll));
         btnCatGrain.setOnClickListener(v -> setCategory("grain", btnCatGrain));
         btnCatVeg.setOnClickListener(v -> setCategory("vegetable", btnCatVeg));
@@ -100,7 +102,7 @@ public class MainActivity extends AppCompatActivity {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
             ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             
-            // यूज़र से GPS की परमिशन माँगें
+            // यूज़र से GPS परमिशन माँगें
             ActivityCompat.requestPermissions(
                     this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
@@ -145,7 +147,6 @@ public class MainActivity extends AppCompatActivity {
                 currentLng = lastKnown.getLongitude();
                 fetchCrops(currentLat, currentLng);
             } else {
-                // अगर लास्ट लोकेशन न मिले, तो 1 बार ताज़ा लोकेशन लें
                 statusText.setText("📍 GPS लोकेशन खोजी जा रही है...");
                 LocationListener locationListener = new LocationListener() {
                     @Override
@@ -164,7 +165,7 @@ public class MainActivity extends AppCompatActivity {
                 
                 locationManager.requestLocationUpdates(provider, 1000, 10, locationListener, Looper.getMainLooper());
 
-                // 3 सेकंड में अगर GPS रिस्पॉन्स न दे, तो डिफ़ॉल्ट से फ़सलें लाएँ (ताकि स्क्रीन न अटके)
+                // यदि 3 सेकंड में GPS सिग्नल न मिले तो डिफ़ॉल्ट लोकेशन से फ़सलें लाएँ
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
                     locationManager.removeUpdates(locationListener);
                     fetchCrops(currentLat, currentLng);
@@ -190,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
         statusText.setText("📍 आपकी लोकेशन (" + String.format("%.2f", lat) + ", " + String.format("%.2f", lng) + ") के पास फसलें खोजी जा रही हैं...");
         cropsContainer.removeAllViews();
 
-        String apiUrl = "[https://mera-kisan-backend.vercel.app/api/crops?lat=](https://mera-kisan-backend.vercel.app/api/crops?lat=)" + lat + "&lng=" + lng + "&radius=25";
+        String apiUrl = "https://mera-kisan-backend.vercel.app/api/crops?lat=" + lat + "&lng=" + lng + "&radius=25";
 
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
@@ -393,7 +394,7 @@ public class MainActivity extends AppCompatActivity {
                     + "📍 *डिलीवरी पता:* " + (address.isEmpty() ? "कॉल पर बताएंगे" : address);
 
             try {
-                String url = "[https://api.whatsapp.com/send?phone=91](https://api.whatsapp.com/send?phone=91)" + farmerPhone + "&text=" + URLEncoder.encode(message, "UTF-8");
+                String url = "https://api.whatsapp.com/send?phone=91" + farmerPhone + "&text=" + URLEncoder.encode(message, "UTF-8");
                 Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
                 startActivity(intent);
                 dialog.dismiss();
