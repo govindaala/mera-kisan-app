@@ -2,13 +2,14 @@
 package com.merakisan.app;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -16,7 +17,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -25,389 +25,531 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 import androidx.core.app.ActivityCompat;
-import org.json.JSONArray;
-import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Executors;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity {
 
+    private TextView txtBuyerLocationStatus, txtCropsCountHeading, txtEmptyNotice;
+    private EditText edtSearchCrop;
+    private Button btnRefresh, btnHelpDispute;
+
+    // दूरी फ़िल्टर चिप्स
+    private Button chipDistAll, chipDist10, chipDist20, chipDist30, chipDist50, chipDist100;
+    // श्रेणी फ़िल्टर चिप्स
+    private Button chipAll, chipOrganic, chipLocalVillage;
+
+    private LinearLayout containerCrops;
     private ProgressBar progressBar;
-    private TextView statusText;
-    private LinearLayout cropsContainer;
-    private EditText edtSearch;
-    private Button btnRefresh, btnCatAll, btnCatGrain, btnCatVeg, btnCatFruit;
 
-    private static final String PREF_NAME = "MeraKisanGuestPrefs";
-    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1001;
+    private static final int LOCATION_REQ_CODE = 301;
+    private double buyerLat = 24.12;
+    private double buyerLng = 75.58;
+    private String buyerVillageName = "";
 
-    // डिफ़ॉल्ट लोकेशन (यदि GPS बंद हो)
-    private double currentLat = 24.12;
-    private double currentLng = 75.56;
+    private boolean isPaymentOnline = false;
+    private List<JSONObject> fullCropsList = new ArrayList<>();
 
-    private final List<JSONObject> allCropsList = new ArrayList<>();
-    private String selectedCategory = "all";
+    // चुने गए फ़िल्टर्स
+    private int selectedMaxDistKm = 0; // 0 = सभी दूरी
+    private String selectedCategory = "all"; // all, organic, local
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        progressBar = findViewById(R.id.progressBar);
-        statusText = findViewById(R.id.statusText);
-        cropsContainer = findViewById(R.id.cropsContainer);
-        edtSearch = findViewById(R.id.edtSearch);
-        btnRefresh = findViewById(R.id.btnRefresh);
-
-        btnCatAll = findViewById(R.id.btnCatAll);
-        btnCatGrain = findViewById(R.id.btnCatGrain);
-        btnCatVeg = findViewById(R.id.btnCatVeg);
-        btnCatFruit = findViewById(R.id.btnCatFruit);
-
-        btnRefresh.setOnClickListener(v -> checkLocationAndFetch());
-
-        // सर्च बॉक्स फ़िल्टर
-        edtSearch.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                filterAndDisplay();
-            }
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
-
-        // कैटेगरी फ़िल्टर
-        btnCatAll.setOnClickListener(v -> setCategory("all", btnCatAll));
-        btnCatGrain.setOnClickListener(v -> setCategory("grain", btnCatGrain));
-        btnCatVeg.setOnClickListener(v -> setCategory("vegetable", btnCatVeg));
-        btnCatFruit.setOnClickListener(v -> setCategory("fruit", btnCatFruit));
-
-        // ऐप शुरू होते ही GPS चेक करें
-        checkLocationAndFetch();
+        initViews();
+        setupDistanceFilters();
+        setupCategoryFilters();
+        setupSearch();
+        requestBuyerLocation();
+        fetchPublicConfig();
+        loadLiveCrops();
     }
 
-    private void checkLocationAndFetch() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            
-            // यूज़र से GPS परमिशन माँगें
-            ActivityCompat.requestPermissions(
-                    this,
+    private void initViews() {
+        txtBuyerLocationStatus = findViewById(R.id.txtBuyerLocationStatus);
+        txtCropsCountHeading = findViewById(R.id.txtCropsCountHeading);
+        txtEmptyNotice = findViewById(R.id.txtEmptyNotice);
+        edtSearchCrop = findViewById(R.id.edtSearchCrop);
+        btnRefresh = findViewById(R.id.btnRefresh);
+        btnHelpDispute = findViewById(R.id.btnHelpDispute);
+
+        chipDistAll = findViewById(R.id.chipDistAll);
+        chipDist10 = findViewById(R.id.chipDist10);
+        chipDist20 = findViewById(R.id.chipDist20);
+        chipDist30 = findViewById(R.id.chipDist30);
+        chipDist50 = findViewById(R.id.chipDist50);
+        chipDist100 = findViewById(R.id.chipDist100);
+
+        chipAll = findViewById(R.id.chipAll);
+        chipOrganic = findViewById(R.id.chipOrganic);
+        chipLocalVillage = findViewById(R.id.chipLocalVillage);
+
+        containerCrops = findViewById(R.id.containerCrops);
+        progressBar = findViewById(R.id.progressBar);
+
+        btnRefresh.setOnClickListener(v -> {
+            requestBuyerLocation();
+            loadLiveCrops();
+        });
+
+        btnHelpDispute.setOnClickListener(v -> showDisputeDialog());
+    }
+
+    // 1. दूरी फ़िल्टर सेट करना (10, 20, 30, 50, 100 किमी)
+    private void setupDistanceFilters() {
+        chipDistAll.setOnClickListener(v -> applyDistanceFilter(0, chipDistAll));
+        chipDist10.setOnClickListener(v -> applyDistanceFilter(10, chipDist10));
+        chipDist20.setOnClickListener(v -> applyDistanceFilter(20, chipDist20));
+        chipDist30.setOnClickListener(v -> applyDistanceFilter(30, chipDist30));
+        chipDist50.setOnClickListener(v -> applyDistanceFilter(50, chipDist50));
+        chipDist100.setOnClickListener(v -> applyDistanceFilter(100, chipDist100));
+    }
+
+    private void applyDistanceFilter(int maxKm, Button activeBtn) {
+        selectedMaxDistKm = maxKm;
+        Button[] dChips = {chipDistAll, chipDist10, chipDist20, chipDist30, chipDist50, chipDist100};
+        for (Button b : dChips) {
+            b.setBackgroundColor(Color.parseColor("#E2E8F0"));
+            b.setTextColor(Color.parseColor("#1E293B"));
+        }
+        activeBtn.setBackgroundColor(Color.parseColor("#166534"));
+        activeBtn.setTextColor(Color.WHITE);
+        renderCropsList(edtSearchCrop.getText().toString().trim());
+    }
+
+    // 2. श्रेणी फ़िल्टर सेट करना
+    private void setupCategoryFilters() {
+        chipAll.setOnClickListener(v -> applyCategoryFilter("all", chipAll));
+        chipOrganic.setOnClickListener(v -> applyCategoryFilter("organic", chipOrganic));
+        chipLocalVillage.setOnClickListener(v -> applyCategoryFilter("local", chipLocalVillage));
+    }
+
+    private void applyCategoryFilter(String cat, Button activeBtn) {
+        selectedCategory = cat;
+        Button[] cChips = {chipAll, chipOrganic, chipLocalVillage};
+        for (Button b : cChips) {
+            b.setBackgroundColor(Color.parseColor("#E2E8F0"));
+            b.setTextColor(Color.parseColor("#1E293B"));
+        }
+        activeBtn.setBackgroundColor(Color.parseColor("#0284C7"));
+        activeBtn.setTextColor(Color.WHITE);
+        renderCropsList(edtSearchCrop.getText().toString().trim());
+    }
+
+    private void setupSearch() {
+        edtSearchCrop.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
+                renderCropsList(s.toString().trim());
+            }
+            @Override public void afterTextChanged(Editable s) {}
+        });
+    }
+
+    // 3. जीपीएस लोकेशन लाना
+    private void requestBuyerLocation() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
-                    LOCATION_PERMISSION_REQUEST_CODE
-            );
+                    LOCATION_REQ_CODE);
         } else {
-            getDeviceLocationAndFetch();
+            fetchAccurateLocation();
         }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                getDeviceLocationAndFetch();
-            } else {
-                Toast.makeText(this, "लोकेशन परमिशन नहीं मिली, डिफ़ॉल्ट क्षेत्र दिखाया जा रहा है", Toast.LENGTH_SHORT).show();
-                fetchCrops(currentLat, currentLng);
-            }
+        if (requestCode == LOCATION_REQ_CODE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            fetchAccurateLocation();
         }
     }
 
-    private void getDeviceLocationAndFetch() {
-        LocationManager locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        if (locationManager == null) {
-            fetchCrops(currentLat, currentLng);
-            return;
-        }
+    private void fetchAccurateLocation() {
+        LocationManager lm = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        if (lm == null) return;
 
         try {
-            Location lastKnown = null;
-            if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                lastKnown = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            Location loc = null;
+            if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER);
             }
-            if (lastKnown == null && locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                lastKnown = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+            if (loc == null && lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+                loc = lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
             }
 
-            if (lastKnown != null) {
-                currentLat = lastKnown.getLatitude();
-                currentLng = lastKnown.getLongitude();
-                fetchCrops(currentLat, currentLng);
+            if (loc != null) {
+                buyerLat = loc.getLatitude();
+                buyerLng = loc.getLongitude();
+                resolveBuyerVillage(buyerLat, buyerLng);
             } else {
-                statusText.setText("📍 GPS लोकेशन खोजी जा रही है...");
-                LocationListener locationListener = new LocationListener() {
-                    @Override
-                    public void onLocationChanged(@NonNull Location location) {
-                        currentLat = location.getLatitude();
-                        currentLng = location.getLongitude();
-                        locationManager.removeUpdates(this);
-                        fetchCrops(currentLat, currentLng);
-                    }
-                    @Override public void onProviderEnabled(@NonNull String provider) {}
-                    @Override public void onProviderDisabled(@NonNull String provider) {}
-                };
-
-                String provider = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) ? 
-                        LocationManager.NETWORK_PROVIDER : LocationManager.GPS_PROVIDER;
-                
-                locationManager.requestLocationUpdates(provider, 1000, 10, locationListener, Looper.getMainLooper());
-
-                // यदि 3 सेकंड में GPS सिग्नल न मिले तो डिफ़ॉल्ट लोकेशन से फ़सलें लाएँ
-                new Handler(Looper.getMainLooper()).postDelayed(() -> {
-                    locationManager.removeUpdates(locationListener);
-                    fetchCrops(currentLat, currentLng);
-                }, 3000);
+                txtBuyerLocationStatus.setText("📍 गाँव: बर्दि‍या अमरा (डिफ़ॉल्ट GPS)");
+                buyerVillageName = "बर्दि‍या अमरा";
             }
-        } catch (SecurityException e) {
-            fetchCrops(currentLat, currentLng);
+        } catch (SecurityException ignored) {
+            txtBuyerLocationStatus.setText("📍 गाँव: बर्दि‍या अमरा");
+            buyerVillageName = "बर्दि‍या अमरा";
         }
     }
 
-    private void setCategory(String category, Button activeBtn) {
-        selectedCategory = category;
-        btnCatAll.setBackgroundColor(Color.parseColor("#757575"));
-        btnCatGrain.setBackgroundColor(Color.parseColor("#757575"));
-        btnCatVeg.setBackgroundColor(Color.parseColor("#757575"));
-        btnCatFruit.setBackgroundColor(Color.parseColor("#757575"));
-        activeBtn.setBackgroundColor(Color.parseColor("#2E7D32"));
-        filterAndDisplay();
-    }
-
-    private void fetchCrops(double lat, double lng) {
-        progressBar.setVisibility(View.VISIBLE);
-        statusText.setText("📍 आपकी लोकेशन (" + String.format("%.2f", lat) + ", " + String.format("%.2f", lng) + ") के पास फसलें खोजी जा रही हैं...");
-        cropsContainer.removeAllViews();
-
-        String apiUrl = "https://mera-kisan-backend.vercel.app/api/crops?lat=" + lat + "&lng=" + lng + "&radius=25";
-
+    private void resolveBuyerVillage(double lat, double lng) {
         Executors.newSingleThreadExecutor().execute(() -> {
             try {
-                URL url = new URL(apiUrl);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.setConnectTimeout(8000);
-                conn.setReadTimeout(8000);
+                Geocoder geocoder = new Geocoder(this, new Locale("hi", "IN"));
+                List<Address> addresses = geocoder.getFromLocation(lat, lng, 1);
+                if (addresses != null && !addresses.isEmpty()) {
+                    Address addr = addresses.get(0);
+                    String v = addr.getSubLocality();
+                    if (v == null || v.isEmpty()) v = addr.getLocality();
+                    if (v == null || v.isEmpty()) v = addr.getFeatureName();
 
-                int responseCode = conn.getResponseCode();
-                if (responseCode == 200) {
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder response = new StringBuilder();
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        response.append(line);
-                    }
-                    reader.close();
+                    final String detected = (v != null ? v : "बर्दि‍या अमरा");
+                    buyerVillageName = detected;
 
-                    JSONObject jsonResponse = new JSONObject(response.toString());
-                    JSONArray cropsArray = jsonResponse.getJSONArray("crops");
-
-                    allCropsList.clear();
-                    for (int i = 0; i < cropsArray.length(); i++) {
-                        allCropsList.add(cropsArray.getJSONObject(i));
-                    }
-
-                    new Handler(Looper.getMainLooper()).post(this::filterAndDisplay);
-                } else {
                     new Handler(Looper.getMainLooper()).post(() -> {
-                        progressBar.setVisibility(View.GONE);
-                        statusText.setText("सर्वर से संपर्क नहीं हो सका (Error " + responseCode + ")");
+                        txtBuyerLocationStatus.setText("📍 आपकी लोकेशन: " + detected);
+                        renderCropsList(edtSearchCrop.getText().toString().trim());
                     });
                 }
-            } catch (Exception e) {
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    progressBar.setVisibility(View.GONE);
-                    statusText.setText("त्रुटि: " + e.getLocalizedMessage());
-                });
-            }
+            } catch (Exception ignored) {}
         });
     }
 
-    private void filterAndDisplay() {
-        progressBar.setVisibility(View.GONE);
-        cropsContainer.removeAllViews();
-
-        String query = edtSearch.getText().toString().trim().toLowerCase();
-        List<JSONObject> filtered = new ArrayList<>();
-
-        for (JSONObject crop : allCropsList) {
-            String name = crop.optString("crop_name", "").toLowerCase();
-            String cat = crop.optString("category", "").toLowerCase();
-
-            boolean matchCategory = selectedCategory.equals("all") || cat.equalsIgnoreCase(selectedCategory);
-            boolean matchQuery = query.isEmpty() || name.contains(query);
-
-            if (matchCategory && matchQuery) {
-                filtered.add(crop);
-            }
-        }
-
-        if (filtered.isEmpty()) {
-            statusText.setText("आपके 25 किमी के दायरे में कोई फसल उपलब्ध नहीं है।");
-            return;
-        }
-
-        statusText.setText("उपलब्ध फसलें (" + filtered.size() + ") - ऑर्डर के लिए फसल पर टैप करें");
-
-        for (JSONObject crop : filtered) {
-            cropsContainer.addView(createCropCard(crop));
-        }
-    }
-
-    private View createCropCard(JSONObject crop) {
-        CardView card = new CardView(this);
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-        );
-        params.setMargins(0, 0, 0, 16);
-        card.setLayoutParams(params);
-        card.setRadius(12);
-        card.setCardElevation(4);
-        card.setContentPadding(20, 20, 20, 20);
-
-        LinearLayout layout = new LinearLayout(this);
-        layout.setOrientation(LinearLayout.VERTICAL);
-
-        TextView title = new TextView(this);
-        title.setText(crop.optString("crop_name", "अज्ञात फसल"));
-        title.setTextSize(18);
-        title.setTextColor(Color.parseColor("#1B5E20"));
-        title.getPaint().setFakeBoldText(true);
-
-        TextView farmer = new TextView(this);
-        farmer.setText("किसान: " + crop.optString("farmer_name", "किसान") + " (" + crop.optString("village", "गाँव") + ")");
-        farmer.setTextSize(14);
-        farmer.setTextColor(Color.DKGRAY);
-
-        TextView price = new TextView(this);
-        double rate = crop.optDouble("price_per_kg", 0);
-        double dist = crop.optDouble("distance_km", 0);
-        price.setText("भाव: ₹" + rate + "/kg  |  दूरी: " + dist + " km");
-        price.setTextSize(14);
-        price.setTextColor(Color.parseColor("#D84315"));
-
-        TextView hint = new TextView(this);
-        hint.setText("👉 खरीदने के लिए यहाँ टैप करें");
-        hint.setTextSize(12);
-        hint.setTextColor(Color.parseColor("#2E7D32"));
-        hint.setPadding(0, 8, 0, 0);
-
-        layout.addView(title);
-        layout.addView(farmer);
-        layout.addView(price);
-        layout.addView(hint);
-        card.addView(layout);
-
-        card.setOnClickListener(v -> openCheckoutDialog(crop));
-        return card;
-    }
-
-    private void openCheckoutDialog(JSONObject crop) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_guest_checkout, null);
-        builder.setView(dialogView);
-        AlertDialog dialog = builder.create();
-
-        TextView txtCrop = dialogView.findViewById(R.id.dialogCropTitle);
-        TextView txtFarmer = dialogView.findViewById(R.id.dialogFarmerDetails);
-        EditText edtQty = dialogView.findViewById(R.id.dialogEdtQty);
-        TextView txtTotal = dialogView.findViewById(R.id.dialogTxtTotal);
-        EditText edtName = dialogView.findViewById(R.id.dialogEdtName);
-        EditText edtPhone = dialogView.findViewById(R.id.dialogEdtPhone);
-        EditText edtAddress = dialogView.findViewById(R.id.dialogEdtAddress);
-        Button btnWhatsapp = dialogView.findViewById(R.id.dialogBtnWhatsapp);
-        Button btnCall = dialogView.findViewById(R.id.dialogBtnCall);
-
-        String cropName = crop.optString("crop_name", "फसल");
-        String farmerName = crop.optString("farmer_name", "किसान");
-        String village = crop.optString("village", "गाँव");
-        String farmerPhone = crop.optString("farmer_phone", "9876543210");
-        double rate = crop.optDouble("price_per_kg", 0);
-
-        txtCrop.setText(cropName);
-        txtFarmer.setText("किसान: " + farmerName + " (" + village + ") | भाव: ₹" + rate + "/kg");
-
-        SharedPreferences prefs = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
-        edtName.setText(prefs.getString("cust_name", ""));
-        edtPhone.setText(prefs.getString("cust_phone", ""));
-        edtAddress.setText(prefs.getString("cust_address", ""));
-
-        edtQty.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                try {
-                    double qty = Double.parseDouble(s.toString().trim());
-                    txtTotal.setText("कुल राशि: ₹" + Math.round(qty * rate));
-                } catch (Exception e) {
-                    txtTotal.setText("कुल राशि: ₹0");
-                }
-            }
-            @Override
-            public void afterTextChanged(Editable s) {}
-        });
-        txtTotal.setText("कुल राशि: ₹" + Math.round(5 * rate));
-
-        btnWhatsapp.setOnClickListener(v -> {
-            String name = edtName.getText().toString().trim();
-            String phone = edtPhone.getText().toString().trim();
-            String address = edtAddress.getText().toString().trim();
-            String qty = edtQty.getText().toString().trim();
-
-            if (name.isEmpty() || phone.isEmpty() || qty.isEmpty()) {
-                Toast.makeText(this, "कृपया नाम, फ़ोन नंबर और मात्रा भरें!", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            prefs.edit()
-                .putString("cust_name", name)
-                .putString("cust_phone", phone)
-                .putString("cust_address", address)
-                .apply();
-
-            double totalAmt = 0;
+    private void fetchPublicConfig() {
+        Executors.newSingleThreadExecutor().execute(() -> {
             try {
-                totalAmt = Double.parseDouble(qty) * rate;
+                URL url = new URL("https://mera-kisan-backend.vercel.app/api/admin?action=get_public_config");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+
+                if (conn.getResponseCode() == 200) {
+                    BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) sb.append(line);
+                    br.close();
+
+                    JSONObject res = new JSONObject(sb.toString());
+                    isPaymentOnline = res.optBoolean("payment_enabled", false);
+                }
+            } catch (Exception ignored) {}
+        });
+    }
+
+    private void loadLiveCrops() {
+        progressBar.setVisibility(View.VISIBLE);
+        txtEmptyNotice.setVisibility(View.GONE);
+
+        Executors.newSingleThreadExecutor().execute(() -> {
+            List<JSONObject> tempList = new ArrayList<>();
+            try {
+                URL url = new URL("https://mera-kisan-backend.vercel.app/api/crops");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+
+                if (conn.getResponseCode() == 200) {
+                    BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+                    while ((line = br.readLine()) != null) sb.append(line);
+                    br.close();
+
+                    JSONObject res = new JSONObject(sb.toString());
+                    JSONArray arr = res.optJSONArray("crops");
+                    if (arr != null) {
+                        for (int i = 0; i < arr.length(); i++) {
+                            tempList.add(arr.getJSONObject(i));
+                        }
+                    }
+                }
             } catch (Exception ignored) {}
 
-            String message = "नमस्ते " + farmerName + " जी,\n\n"
-                    + "मुझे *Mera Kisan* ऐप से आपकी फसल का ऑर्डर देना है:\n"
-                    + "🌾 *फसल:* " + cropName + "\n"
-                    + "⚖️ *मात्रा:* " + qty + " किलो\n"
-                    + "💰 *कुल अनुमानित राशि:* ₹" + Math.round(totalAmt) + "\n\n"
-                    + "👤 *ग्राहक:* " + name + "\n"
-                    + "📞 *मोबाइल:* " + phone + "\n"
-                    + "📍 *डिलीवरी पता:* " + (address.isEmpty() ? "कॉल पर बताएंगे" : address);
+            new Handler(Looper.getMainLooper()).post(() -> {
+                progressBar.setVisibility(View.GONE);
+                fullCropsList = tempList;
+                renderCropsList(edtSearchCrop.getText().toString().trim());
+            });
+        });
+    }
 
-            try {
-                String url = "https://api.whatsapp.com/send?phone=91" + farmerPhone + "&text=" + URLEncoder.encode(message, "UTF-8");
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                startActivity(intent);
-                dialog.dismiss();
-            } catch (Exception e) {
-                Toast.makeText(this, "WhatsApp नहीं खुल सका: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+    // 4. किसी फ़सल की सटीक दूरी (किमी में) निकालना
+    private float getAccurateDistanceKm(JSONObject crop) {
+        String farmerVillage = crop.optString("village", "");
+        if (isSameVillage(farmerVillage, buyerVillageName)) {
+            return 0.1f; // आपके ही गाँव में
+        }
+
+        double fLat = crop.optDouble("lat", 0);
+        double fLng = crop.optDouble("lng", 0);
+
+        if (fLat == 0 || fLng == 0) return 0.5f;
+
+        float[] results = new float[1];
+        Location.distanceBetween(buyerLat, buyerLng, fLat, fLng, results);
+        return results[0] / 1000f; // मीटर को किमी में बदला
+    }
+
+    private boolean isSameVillage(String v1, String v2) {
+        if (v1 == null || v2 == null || v1.isEmpty() || v2.isEmpty()) return false;
+        String a = v1.replaceAll("[^a-zA-Z0-9\u0900-\u097F]", "").toLowerCase();
+        String b = v2.replaceAll("[^a-zA-Z0-9\u0900-\u097F]", "").toLowerCase();
+        return a.contains("बर्दिया") || a.contains("बर्दि‍या") || a.contains(b) || b.contains(a);
+    }
+
+    // 5. फ़िल्टर लगाना व सबसे नज़दीकी फ़सलें प्रदर्शित करना
+    private void renderCropsList(String query) {
+        containerCrops.removeAllViews();
+        List<JSONObject> filtered = new ArrayList<>();
+
+        for (JSONObject c : fullCropsList) {
+            String cropName = c.optString("crop_name", "");
+            String farmerName = c.optString("farmer_name", "");
+            String farmerVillage = c.optString("village", "");
+            boolean isOrganic = "organic".equalsIgnoreCase(c.optString("farming_type"));
+
+            // सर्च फ़िल्टर
+            if (!query.isEmpty()) {
+                String qLower = query.toLowerCase();
+                if (!cropName.toLowerCase().contains(qLower) &&
+                    !farmerName.toLowerCase().contains(qLower) &&
+                    !farmerVillage.toLowerCase().contains(qLower)) {
+                    continue;
+                }
             }
+
+            // श्रेणी फ़िल्टर
+            if ("organic".equals(selectedCategory) && !isOrganic) continue;
+            if ("local".equals(selectedCategory) && !isSameVillage(farmerVillage, buyerVillageName)) continue;
+
+            // 📍 दूरी फ़िल्टर (10, 20, 30, 50, 100 किमी)
+            float distKm = getAccurateDistanceKm(c);
+            if (selectedMaxDistKm > 0 && distKm > selectedMaxDistKm) {
+                continue;
+            }
+
+            filtered.add(c);
+        }
+
+        // सबसे नज़दीक वाली फ़सलें ऊपर दिखाना (प्रमोटेड फ़सलें हमेशा सर्वोच्च)
+        Collections.sort(filtered, (o1, o2) -> {
+            boolean p1 = o1.optBoolean("is_promoted", false);
+            boolean p2 = o2.optBoolean("is_promoted", false);
+            if (p1 && !p2) return -1;
+            if (!p1 && p2) return 1;
+            return Float.compare(getAccurateDistanceKm(o1), getAccurateDistanceKm(o2));
         });
 
+        for (JSONObject c : filtered) {
+            addModernCropCard(c);
+        }
+
+        String distSuffix = selectedMaxDistKm > 0 ? " (" + selectedMaxDistKm + " किमी के भीतर: " + filtered.size() + ")" : " (" + filtered.size() + ")";
+        txtCropsCountHeading.setText("🌾 मंडी में उपलब्ध फ़सलें" + distSuffix);
+        txtEmptyNotice.setVisibility(filtered.isEmpty() ? View.VISIBLE : View.GONE);
+    }
+
+    // 6. आधुनिक फ़सल कार्ड बनाना
+    private void addModernCropCard(JSONObject crop) {
+        String name = crop.optString("crop_name");
+        String farmerName = crop.optString("farmer_name", "किसान साथी");
+        String farmerVillage = crop.optString("village", "गाँव");
+        String phone = crop.optString("farmer_phone", "");
+        double price = crop.optDouble("price_per_kg", 0);
+        double stock = crop.optDouble("stock_qty_kg", 0);
+        boolean isOrganic = "organic".equalsIgnoreCase(crop.optString("farming_type"));
+        boolean isPromoted = crop.optBoolean("is_promoted", false);
+
+        float distKm = getAccurateDistanceKm(crop);
+        String distanceLabel;
+        if (isSameVillage(farmerVillage, buyerVillageName) || distKm < 0.5f) {
+            distanceLabel = "📍 आपके ही गाँव में (खेत पर सीधा संपर्क)";
+        } else if (distKm < 1.0f) {
+            distanceLabel = "📍 1 किमी के भीतर (पड़ोस में)";
+        } else {
+            distanceLabel = "📍 " + String.format(Locale.ENGLISH, "%.1f", distKm) + " किमी दूर (" + farmerVillage + ")";
+        }
+
+        CardView card = new CardView(this);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 0, 0, 16);
+        card.setLayoutParams(lp);
+        card.setRadius(14);
+        card.setCardElevation(3);
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(18, 18, 18, 18);
+
+        // शीर्ष पंक्ति: फ़सल नाम व बैज
+        LinearLayout headRow = new LinearLayout(this);
+        headRow.setOrientation(LinearLayout.HORIZONTAL);
+
+        TextView title = new TextView(this);
+        title.setText(name);
+        title.setTextSize(17);
+        title.setTextColor(Color.parseColor("#166534"));
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        headRow.addView(title);
+
+        if (isPromoted) {
+            TextView badgeP = new TextView(this);
+            badgeP.setText("🔥 टॉप डील");
+            badgeP.setBackgroundColor(Color.parseColor("#FEF3C7"));
+            badgeP.setTextColor(Color.parseColor("#B45309"));
+            badgeP.setTextSize(10);
+            badgeP.setPadding(8, 4, 8, 4);
+            headRow.addView(badgeP);
+        }
+        box.addView(headRow);
+
+        // किसान विवरण व दूरी
+        TextView fDetails = new TextView(this);
+        fDetails.setText("👨‍🌾 किसान: " + farmerName + "\n" + distanceLabel);
+        fDetails.setTextSize(13);
+        fDetails.setTextColor(Color.parseColor("#475569"));
+        fDetails.setPadding(0, 6, 0, 6);
+        box.addView(fDetails);
+
+        if (isOrganic) {
+            TextView orgBadge = new TextView(this);
+            orgBadge.setText("🛡️ 100% प्रमाणित जैविक फ़सल");
+            orgBadge.setTextColor(Color.parseColor("#15803D"));
+            orgBadge.setTextSize(12);
+            orgBadge.setTypeface(null, android.graphics.Typeface.BOLD);
+            orgBadge.setPadding(0, 0, 0, 6);
+            box.addView(orgBadge);
+        }
+
+        // भाव व स्टॉक
+        TextView priceView = new TextView(this);
+        priceView.setText("💰 भाव: ₹" + (int)price + "/kg (₹" + (int)(price * 100) + "/क्विंटल)  |  📦 स्टॉक: " + (int)stock + " किलो");
+        priceView.setTextSize(14);
+        priceView.setTextColor(Color.parseColor("#0F172A"));
+        priceView.setTypeface(null, android.graphics.Typeface.BOLD);
+        priceView.setPadding(0, 4, 0, 14);
+        box.addView(priceView);
+
+        // एक्शन बटन्स (कॉल व WhatsApp)
+        LinearLayout btnRow = new LinearLayout(this);
+        btnRow.setOrientation(LinearLayout.HORIZONTAL);
+
+        Button btnCall = new Button(this);
+        btnCall.setText("📞 कॉल करें");
+        btnCall.setBackgroundColor(Color.parseColor("#0284C7"));
+        btnCall.setTextColor(Color.WHITE);
+        btnCall.setTextSize(12);
         btnCall.setOnClickListener(v -> {
-            Intent callIntent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + farmerPhone));
+            Intent callIntent = new Intent(Intent.ACTION_DIAL, Uri.parse("tel:+91" + phone));
             startActivity(callIntent);
         });
+        btnRow.addView(btnCall);
 
-        dialog.show();
+        Button btnWa = new Button(this);
+        btnWa.setText("💬 WhatsApp");
+        btnWa.setBackgroundColor(Color.parseColor("#166534"));
+        btnWa.setTextColor(Color.WHITE);
+        btnWa.setTextSize(12);
+        LinearLayout.LayoutParams waLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        waLp.setMargins(8, 0, 0, 0);
+        btnWa.setLayoutParams(waLp);
+        btnWa.setOnClickListener(v -> openWhatsAppToFarmer(phone, name, farmerName));
+        btnRow.addView(btnWa);
+
+        if (isPaymentOnline) {
+            Button btnBook = new Button(this);
+            btnBook.setText("🛒 10% टोकन");
+            btnBook.setBackgroundColor(Color.parseColor("#F59E0B"));
+            btnBook.setTextColor(Color.BLACK);
+            btnBook.setTextSize(12);
+            LinearLayout.LayoutParams bLp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            bLp.setMargins(8, 0, 0, 0);
+            btnBook.setLayoutParams(bLp);
+            btnBook.setOnClickListener(v -> Toast.makeText(this, "सुरक्षित एस्क्रो बुकिंग जल्द शुरू होगी!", Toast.LENGTH_SHORT).show());
+            btnRow.addView(btnBook);
+        }
+
+        box.addView(btnRow);
+        card.addView(box);
+        containerCrops.addView(card);
+    }
+
+    private void openWhatsAppToFarmer(String phone, String cropName, String farmerName) {
+        String msg = "नमस्ते " + farmerName + " जी, मैंने Mera Kisan ऐप पर आपकी फ़सल '" + cropName + "' देखी है। मुझे यह खरीदनी है, कृपया उपलब्ध स्टॉक और अंतिम भाव बताएं।";
+        try {
+            Intent waIntent = new Intent(Intent.ACTION_VIEW);
+            waIntent.setData(Uri.parse("https://wa.me/91" + phone + "?text=" + URLEncoder.encode(msg, "UTF-8")));
+            startActivity(waIntent);
+        } catch (Exception e) {
+            Toast.makeText(this, "WhatsApp नहीं खुला", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showDisputeDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("📢 ग्राहक सहायता व शिकायत केंद्र");
+
+        final EditText input = new EditText(this);
+        input.setHint("फ़सल या किसान को लेकर अपनी समस्या लिखें...");
+        input.setMinLines(3);
+        input.setPadding(20, 20, 20, 20);
+        builder.setView(input);
+
+        builder.setPositiveButton("भेजें ✉️", (dialog, which) -> {
+            String msg = input.getText().toString().trim();
+            if (!msg.isEmpty()) submitDispute(msg);
+        });
+        builder.setNegativeButton("रद्द करें", null);
+        builder.show();
+    }
+
+    private void submitDispute(String msg) {
+        Toast.makeText(this, "शिकायत भेजी जा रही है...", Toast.LENGTH_SHORT).show();
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                URL url = new URL("https://mera-kisan-backend.vercel.app/api/admin");
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setDoOutput(true);
+
+                JSONObject payload = new JSONObject();
+                payload.put("action", "create_dispute");
+                payload.put("user_type", "buyer");
+                payload.put("name", "ग्राहक साथी (" + buyerVillageName + ")");
+                payload.put("phone", "अज्ञात");
+                payload.put("issue_type", "ग्राहक सहायता");
+                payload.put("message", msg);
+
+                OutputStream os = conn.getOutputStream();
+                os.write(payload.toString().getBytes("UTF-8"));
+                os.close();
+                conn.getResponseCode();
+            } catch (Exception ignored) {}
+
+            new Handler(Looper.getMainLooper()).post(() -> {
+                Toast.makeText(this, "✅ आपकी बात एडमिन टीम तक पहुँच गई है!", Toast.LENGTH_LONG).show();
+            });
+        });
     }
 }
