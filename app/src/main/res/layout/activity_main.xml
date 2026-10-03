@@ -1,136 +1,290 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- File Path: app/src/main/res/layout/activity_main.xml -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="#F4F6F8">
+    android:background="#F8FAFC">
 
-    <!-- टॉप हेडर बार -->
+    <!-- 1. हेडर बार -->
     <LinearLayout
+        android:id="@+id/headerBar"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:background="#2E7D32"
-        android:gravity="center_vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp">
+        android:layout_height="wrap_content"
+        android:background="#166534"
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <TextView
-            android:layout_width="0dp"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="🌱 Mera Kisan"
-            android:textColor="#FFFFFF"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <!-- रिफ्रेश बटन -->
-        <Button
-            android:id="@+id/btnRefresh"
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🌱 Mera Kisan"
+                android:textColor="#FFFFFF"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnHelpDispute"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:background="#14532D"
+                android:text="📢 सहायता / शिकायत"
+                android:textColor="#BBF7D0"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnRefresh"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginStart="6dp"
+                android:background="#14532D"
+                android:text="🔄 रिफ़्रेश"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- ग्राहक की लोकेशन स्थिति -->
+        <TextView
+            android:id="@+id/txtBuyerLocationStatus"
             android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:backgroundTint="#1B5E20"
-            android:text="🔄 रिफ्रेश"
-            android:textColor="#FFFFFF"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="📍 आपकी लोकेशन: खोजी जा रही है..."
+            android:textColor="#DCFCE7"
             android:textSize="12sp" />
     </LinearLayout>
 
-    <!-- सर्च बॉक्स -->
-    <EditText
-        android:id="@+id/edtSearch"
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:layout_margin="10dp"
-        android:background="@android:drawable/editbox_background_normal"
-        android:hint="🔍 फसल का नाम खोजें..."
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:textSize="14sp" />
-
-    <!-- कैटेगरी फ़िल्टर बार -->
-    <HorizontalScrollView
+    <!-- 2. सर्च व दूरी फ़िल्टर सेक्शन -->
+    <LinearLayout
+        android:id="@+id/filterSection"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:scrollbars="none"
-        android:paddingStart="10dp"
-        android:paddingEnd="10dp"
-        android:layout_marginBottom="6dp">
+        android:layout_below="@id/headerBar"
+        android:background="#FFFFFF"
+        android:elevation="3dp"
+        android:orientation="vertical"
+        android:padding="12dp">
 
+        <EditText
+            android:id="@+id/edtSearchCrop"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:background="@android:drawable/edit_text"
+            android:drawableStart="@android:drawable/ic_menu_search"
+            android:drawablePadding="8dp"
+            android:hint="फ़सल, अनाज या किसान का नाम खोजें..."
+            android:inputType="text"
+            android:textSize="14sp" />
+
+        <!-- 📍 दूरी फ़िल्टर बार (10km, 20km, 30km, 50km, 100km) -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/btnCatAll"
+            <TextView
                 android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:layout_marginEnd="6dp"
-                android:backgroundTint="#2E7D32"
-                android:text="सभी"
-                android:textSize="12sp" />
+                android:layout_height="wrap_content"
+                android:text="📍 दूरी दायरा:"
+                android:textColor="#475569"
+                android:textSize="12sp"
+                android:textStyle="bold" />
 
-            <Button
-                android:id="@+id/btnCatGrain"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:layout_marginEnd="6dp"
-                android:backgroundTint="#757575"
-                android:text="अनाज"
-                android:textSize="12sp" />
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:scrollbars="none">
 
-            <Button
-                android:id="@+id/btnCatVeg"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:layout_marginEnd="6dp"
-                android:backgroundTint="#757575"
-                android:text="सब्ज़ियां"
-                android:textSize="12sp" />
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/btnCatFruit"
-                android:layout_width="wrap_content"
-                android:layout_height="36dp"
-                android:backgroundTint="#757575"
-                android:text="फल"
-                android:textSize="12sp" />
+                    <Button
+                        android:id="@+id/chipDistAll"
+                        style="?android:attr/borderlessButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:background="#166534"
+                        android:paddingHorizontal="10dp"
+                        android:text="सभी दूरी"
+                        android:textColor="#FFFFFF"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <Button
+                        android:id="@+id/chipDist10"
+                        style="?android:attr/borderlessButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="6dp"
+                        android:background="#E2E8F0"
+                        android:paddingHorizontal="10dp"
+                        android:text="≤ 10 किमी"
+                        android:textColor="#1E293B"
+                        android:textSize="11sp" />
+
+                    <Button
+                        android:id="@+id/chipDist20"
+                        style="?android:attr/borderlessButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="6dp"
+                        android:background="#E2E8F0"
+                        android:paddingHorizontal="10dp"
+                        android:text="≤ 20 किमी"
+                        android:textColor="#1E293B"
+                        android:textSize="11sp" />
+
+                    <Button
+                        android:id="@+id/chipDist30"
+                        style="?android:attr/borderlessButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="6dp"
+                        android:background="#E2E8F0"
+                        android:paddingHorizontal="10dp"
+                        android:text="≤ 30 किमी"
+                        android:textColor="#1E293B"
+                        android:textSize="11sp" />
+
+                    <Button
+                        android:id="@+id/chipDist50"
+                        style="?android:attr/borderlessButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="6dp"
+                        android:background="#E2E8F0"
+                        android:paddingHorizontal="10dp"
+                        android:text="≤ 50 किमी"
+                        android:textColor="#1E293B"
+                        android:textSize="11sp" />
+
+                    <Button
+                        android:id="@+id/chipDist100"
+                        style="?android:attr/borderlessButtonStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="6dp"
+                        android:background="#E2E8F0"
+                        android:paddingHorizontal="10dp"
+                        android:text="≤ 100 किमी"
+                        android:textColor="#1E293B"
+                        android:textSize="11sp" />
+                </LinearLayout>
+            </HorizontalScrollView>
         </LinearLayout>
-    </HorizontalScrollView>
 
-    <!-- लोडिंग इंडिकेटर -->
-    <ProgressBar
-        android:id="@+id/progressBar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginTop="16dp"
-        android:visibility="gone" />
+        <!-- श्रेणी फ़िल्टर चिप्स (जैविक / सभी) -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:scrollbars="none">
 
-    <!-- स्टेटस टेक्स्ट -->
-    <TextView
-        android:id="@+id/statusText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:padding="8dp"
-        android:textColor="#666666"
-        android:textSize="14sp"
-        android:text="फसलें लोड हो रही हैं..." />
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
 
-    <!-- फसलों की लिस्ट -->
+                <Button
+                    android:id="@+id/chipAll"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:background="#E2E8F0"
+                    android:paddingHorizontal="10dp"
+                    android:text="सभी प्रकार"
+                    android:textColor="#1E293B"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/chipOrganic"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_marginStart="6dp"
+                    android:background="#E2E8F0"
+                    android:paddingHorizontal="10dp"
+                    android:text="🛡️ प्रमाणित जैविक"
+                    android:textColor="#1E293B"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/chipLocalVillage"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:layout_marginStart="6dp"
+                    android:background="#E2E8F0"
+                    android:paddingHorizontal="10dp"
+                    android:text="🏡 अपने गाँव की"
+                    android:textColor="#1E293B"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </HorizontalScrollView>
+    </LinearLayout>
+
+    <!-- 3. लाइव मंडी फ़सलें सूची -->
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:layout_below="@id/filterSection"
+        android:fillViewport="true">
 
         <LinearLayout
-            android:id="@+id/cropsContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="24dp" />
+            android:padding="14dp">
+
+            <TextView
+                android:id="@+id/txtCropsCountHeading"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🌾 मंडी में उपलब्ध ताज़ा उपज"
+                android:textColor="#334155"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:id="@+id/containerCrops"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="vertical" />
+
+            <TextView
+                android:id="@+id/txtEmptyNotice"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="50dp"
+                android:gravity="center"
+                android:text="इस दायरे में कोई फ़सल नहीं मिली।\nदूरी फ़िल्टर बढ़ाकर (जैसे 30 या 50 किमी) देखें!"
+                android:textColor="#94A3B8"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <ProgressBar
+                android:id="@+id/progressBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="40dp" />
+        </LinearLayout>
     </ScrollView>
 
-</LinearLayout>
+</RelativeLayout>
